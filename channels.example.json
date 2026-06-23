@@ -1,0 +1,18 @@
+{
+  "channels": [
+    {
+      "id": "ch_xxxxxxxx",
+      "token_file": "credentials/ch_xxxxxxxx_token.json",
+      "name": "My Channel Name",
+      "platform": "youtube",
+      "color": "#ff4444",
+      "drive_queue_folder_id": "PASTE_DRIVE_FOLDER_ID_HERE",
+      "drive_done_folder_id": "",
+      "upload_time": "09:00",
+      "uploads_per_day": 1,
+      "privacy_status": "public",
+      "gemini_extra_prompt": "",
+      "enabled": true
+    }
+  ]
+}

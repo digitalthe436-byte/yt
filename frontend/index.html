@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YT Auto Uploader</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <div class="logo">YT</div>
+    <span class="header-title">Auto Uploader</span>
+  </div>
+  <div class="header-right">
+    <span id="refresh-tick" class="muted-sm"></span>
+    <button class="btn btn-ghost" onclick="openSettings()">⚙ Settings</button>
+    <button class="btn btn-primary" onclick="openModal()">+ Add Channel</button>
+    <a href="/docs" target="_blank"><button class="btn btn-ghost">API Docs ↗</button></a>
+  </div>
+</header>
+
+<!-- ── Global Stats Bar ─────────────────────────────────────────────── -->
+<div class="stats-bar">
+  <div class="stat-pill">
+    <div class="stat-value" id="s-channels">—</div>
+    <div class="stat-label">Channels</div>
+  </div>
+  <div class="stat-pill">
+    <div class="stat-value" id="s-queue">—</div>
+    <div class="stat-label">Total Queue</div>
+  </div>
+  <div class="stat-pill">
+    <div class="stat-value" id="s-uploaded">—</div>
+    <div class="stat-label">Total Uploaded</div>
+  </div>
+  <div class="stat-pill">
+    <div class="stat-value" id="s-today">—</div>
+    <div class="stat-label">Today</div>
+  </div>
+</div>
+
+<!-- ── Main ─────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Chart -->
+  <section class="card chart-card">
+    <div class="card-header">
+      <span class="card-title">Uploads — Last 7 Days</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="uploads-chart"></canvas>
+    </div>
+  </section>
+
+  <!-- Channel Cards -->
+  <section>
+    <div class="section-title">Channels</div>
+    <div id="channels-grid" class="channels-grid">
+      <div class="empty-state" id="no-channels">
+        No channels yet. Click <strong>+ Add Channel</strong> to get started.
+      </div>
+    </div>
+  </section>
+
+  <!-- Activity Log -->
+  <section class="card">
+    <div class="card-header">
+      <span class="card-title">Recent Uploads</span>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="muted-sm" id="log-count"></span>
+        <button class="btn btn-ghost btn-sm danger" onclick="clearHistory()">Clear All</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="history-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Channel</th>
+            <th>Title</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+          <tr><td colspan="4" class="muted-sm" style="text-align:center;padding:20px">No uploads yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Live Logs -->
+  <section class="card">
+    <div class="card-header">
+      <span class="card-title">System Log</span>
+      <label class="toggle-wrap">
+        <span class="muted-sm">Auto-scroll</span>
+        <input type="checkbox" id="autoscroll-toggle" checked />
+      </label>
+    </div>
+    <div class="log-box" id="log-box"></div>
+  </section>
+
+</main>
+
+<!-- ── Add / Edit Channel Modal ─────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modal-title">Add Channel</span>
+      <button class="btn btn-ghost icon-btn" onclick="closeModal()">✕</button>
+    </div>
+    <form id="channel-form" onsubmit="saveChannel(event)">
+      <input type="hidden" id="edit-id" />
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Channel Name</label>
+          <input type="text" id="f-name" placeholder="My Vlog Channel" required />
+        </div>
+        <div class="form-group" style="flex:0 0 120px">
+          <label>Color</label>
+          <input type="color" id="f-color" value="#ff4444" class="color-input" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Platform</label>
+          <select id="f-platform">
+            <option value="youtube">YouTube</option>
+            <option value="instagram" disabled>Instagram (coming soon)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>First Upload Time (local)</label>
+          <input type="time" id="f-time" value="09:00" required oninput="updateSlotPreview()" />
+        </div>
+        <div class="form-group">
+          <label>Uploads per Day</label>
+          <input type="number" id="f-upd" value="1" min="1" max="10" style="width:80px" oninput="updateSlotPreview()" />
+        </div>
+        <div class="form-group">
+          <label>Privacy</label>
+          <select id="f-privacy">
+            <option value="public">Public</option>
+            <option value="unlisted">Unlisted</option>
+            <option value="private">Private</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="slot-preview" class="slot-preview"></div>
+
+      <div class="form-group">
+        <label>Drive Queue Folder ID</label>
+        <input type="text" id="f-queue" placeholder="Paste the folder ID from Google Drive URL" />
+        <span class="hint">drive.google.com/drive/folders/<strong>THIS_PART</strong></span>
+      </div>
+
+      <div class="form-group">
+        <label>Drive Done Folder ID <span class="muted-sm">(leave blank to auto-create)</span></label>
+        <input type="text" id="f-done" placeholder="Optional" />
+      </div>
+
+      <div class="form-group">
+        <label>Gemini Extra Prompt <span class="muted-sm">(optional)</span></label>
+        <textarea id="f-gemini" rows="2" placeholder="e.g. Always mention my channel name in the description."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="f-enabled" checked />
+          <span>Enabled (run scheduled uploads)</span>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="save-btn">Save Channel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Settings Modal ───────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="settings-backdrop" onclick="closeSettings(event)">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <span>⚙ Settings</span>
+      <button class="btn btn-ghost icon-btn" onclick="closeSettings()">✕</button>
+    </div>
+
+    <div style="padding:20px;display:flex;flex-direction:column;gap:24px">
+
+      <!-- Google OAuth -->
+      <div>
+        <div class="settings-section-title">Google OAuth (YouTube + Drive)</div>
+        <div class="settings-desc">
+          Required for uploading to YouTube and reading from Google Drive.<br>
+          Get this from <strong>Google Cloud Console</strong> → Your Project → Credentials → OAuth 2.0 Client ID (Desktop app) → Download JSON.
+        </div>
+        <div id="secrets-status" class="status-pill missing">✗ client_secrets.json not found</div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Paste client_secrets.json content</label>
+          <textarea id="s-secrets" rows="5" placeholder='{"installed":{"client_id":"...","client_secret":"..."}}'
+                    style="font-family:var(--mono);font-size:.75rem"></textarea>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+          <button class="btn btn-primary btn-sm" onclick="saveSecrets()">Save OAuth File</button>
+          <a href="https://console.cloud.google.com/apis/credentials" target="_blank">
+            <button class="btn btn-ghost btn-sm">Open Cloud Console ↗</button>
+          </a>
+        </div>
+        <div class="settings-steps">
+          <strong>Steps:</strong>
+          <ol>
+            <li>Go to <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+            <li>Create a project → Enable <strong>YouTube Data API v3</strong> + <strong>Google Drive API</strong></li>
+            <li>OAuth consent screen → External → add your Gmail as a <strong>test user</strong></li>
+            <li>Credentials → Create <strong>OAuth 2.0 Client ID</strong> → Desktop app → Download JSON</li>
+            <li>Paste the file content above and click Save</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Groq AI (primary) -->
+      <div>
+        <div class="settings-section-title">Groq AI — Auto Metadata <span style="color:var(--green);font-size:.68rem;font-weight:700">RECOMMENDED · FREE</span></div>
+        <div class="settings-desc">
+          Generates title, description and tags using Llama 3.3 — free, works globally, 30 req/min, no video upload needed.
+        </div>
+        <div id="groq-status" class="status-pill missing">✗ API key not set</div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Groq API Key</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="s-groq-key" placeholder="gsk_…" style="flex:1" />
+            <button class="btn btn-ghost btn-sm" onclick="toggleGroqKeyVisibility()">Show</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button class="btn btn-primary btn-sm" onclick="saveGroqKey()">Save Key</button>
+          <a href="https://console.groq.com/keys" target="_blank">
+            <button class="btn btn-ghost btn-sm">Get Free Key ↗</button>
+          </a>
+        </div>
+        <div class="settings-steps">
+          <strong>Steps:</strong>
+          <ol>
+            <li>Go to <a href="https://console.groq.com" target="_blank">console.groq.com</a> → sign up free (Google login works)</li>
+            <li>Click <strong>API Keys</strong> in sidebar → <strong>Create API Key</strong></li>
+            <li>Copy the key (starts with <code>gsk_</code>) → paste above → Save Key</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Gemini AI (fallback) -->
+      <div>
+        <div class="settings-section-title">Gemini AI — Fallback <span style="color:var(--muted);font-size:.68rem">(optional)</span></div>
+        <div class="settings-desc">Used only if Groq key is not set. May have regional restrictions on free tier.</div>
+        <div id="gemini-status" class="status-pill missing">✗ API key not set</div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Gemini API Key</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="s-gemini-key" placeholder="AIza…" style="flex:1" />
+            <button class="btn btn-ghost btn-sm" onclick="toggleKeyVisibility()">Show</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button class="btn btn-primary btn-sm" onclick="saveGeminiKey()">Save Key</button>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank">
+            <button class="btn btn-ghost btn-sm">Get Free Key ↗</button>
+          </a>
+        </div>
+      </div>
+
+      <!-- Defaults -->
+      <div>
+        <div class="settings-section-title">Upload Defaults</div>
+        <div class="settings-desc">These apply when a channel doesn't override them.</div>
+        <div class="form-row" style="margin-top:12px">
+          <div class="form-group">
+            <label>Default Upload Time</label>
+            <input type="time" id="s-time" value="09:00" />
+          </div>
+          <div class="form-group">
+            <label>Default Privacy</label>
+            <select id="s-privacy">
+              <option value="public">Public</option>
+              <option value="unlisted">Unlisted</option>
+              <option value="private">Private</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveDefaults()">Save Defaults</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Secrets — never commit these
+.env
+client_secrets.json
+credentials/
+
+# Personal data
+channels.json
+data/
+logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.Python
+*.egg-info/
+dist/
+build/

@@ -1,0 +1,9 @@
+{
+  "_comment": "Copy this to config.json. API keys go in .env — not here.",
+  "upload_time": "09:00",
+  "privacy_status": "public",
+  "default_category": "22",
+  "gemini_extra_prompt": "",
+  "drive_queue_folder_id": "",
+  "drive_done_folder_id": ""
+}
